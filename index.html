@@ -1,0 +1,733 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="theme-color" content="#000000">
+<title>Systemwarnung</title>
+<style>
+:root{
+  --bg:#000;--cell:#1c1c1e;--cell2:#2c2c2e;--sep:#38383a;--text:#fff;--dim:#8e8e93;
+  --blue:#0a84ff;--red:#ff453a;--green:#30d158;--orange:#ff9f0a;
+  --sans:-apple-system,BlinkMacSystemFont,"SF Pro Text","Helvetica Neue",Roboto,system-ui,sans-serif;
+  --mono:ui-monospace,"SF Mono",Menlo,"Roboto Mono",Consolas,monospace;
+  box-sizing:border-box;padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px);
+}
+@media (prefers-color-scheme: dark){:root:not([data-theme="light"]){--bg:#000;--text:#fff}}
+:root[data-theme="dark"]{--bg:#000;--text:#fff}
+*,*::before,*::after{box-sizing:border-box;-webkit-tap-highlight-color:transparent}
+html{height:100%;scroll-padding-top:env(safe-area-inset-top,0px);background:var(--bg)}
+body{margin:0;min-height:100%;background:var(--bg);color:var(--text);font-family:var(--sans);-webkit-font-smoothing:antialiased;font-size:17px}
+button{font:inherit;cursor:pointer;color:inherit}
+button:focus-visible,input:focus-visible,summary:focus-visible{outline:2px solid var(--blue);outline-offset:2px}
+.wrap{max-width:520px;margin:0 auto;padding:18px 16px 48px}
+
+/* SPERRBILDSCHIRM */
+.lock{position:fixed;inset:0;overflow:hidden;display:flex;flex-direction:column;align-items:center;
+  background:radial-gradient(120% 70% at 20% 0%,#3a2a6b 0%,transparent 60%),radial-gradient(120% 80% at 90% 100%,#0b3b5c 0%,transparent 60%),#07070c;
+  padding:calc(env(safe-area-inset-top,0px) + 7vh) 14px env(safe-area-inset-bottom,0px)}
+.lock .pad{width:22px;height:22px;opacity:.9;margin-bottom:6px}
+.lock .date{font-size:20px;font-weight:600;color:rgba(255,255,255,.85)}
+.lock .time{font-size:clamp(78px,24vw,104px);font-weight:700;letter-spacing:-.02em;line-height:1;margin:2px 0 40px;color:rgba(255,255,255,.95)}
+.notif{width:100%;max-width:420px;text-align:left;border:0;padding:12px 14px;border-radius:22px;
+  background:rgba(60,60,67,.55);-webkit-backdrop-filter:blur(30px);backdrop-filter:blur(30px);display:grid;grid-template-columns:38px 1fr;gap:10px;align-items:start;
+  animation:drop .6s cubic-bezier(.2,.9,.3,1.2) both}
+.notif .ico{width:38px;height:38px;border-radius:9px;background:var(--red);display:flex;align-items:center;justify-content:center;font-size:20px}
+.notif .row{display:flex;justify-content:space-between;font-size:15px}
+.notif .row b{font-weight:600}.notif .row span{color:rgba(255,255,255,.6);font-size:14px}
+.notif p{margin:2px 0 0;font-size:15px;line-height:1.3;color:rgba(255,255,255,.9)}
+.notif.again{animation:drop .6s both,nudge 2.4s 1.2s infinite}
+@keyframes drop{from{transform:translateY(-40px) scale(.96);opacity:0}}
+@keyframes nudge{0%,90%,100%{transform:none}93%{transform:translateX(-4px)}96%{transform:translateX(4px)}}
+.lock .foot{margin-top:auto;padding-bottom:22px;font-size:15px;color:rgba(255,255,255,.55)}
+
+/* iOS-ALERT */
+.scrim{position:fixed;inset:0;z-index:30;background:rgba(0,0,0,.45);display:flex;align-items:center;justify-content:center;padding:24px;animation:fade .2s}
+@keyframes fade{from{opacity:0}}
+.alert{width:270px;border-radius:14px;overflow:hidden;background:rgba(44,44,46,.82);-webkit-backdrop-filter:blur(30px);backdrop-filter:blur(30px);text-align:center;animation:pop .25s cubic-bezier(.2,.9,.3,1.3)}
+@keyframes pop{from{transform:scale(1.15);opacity:0}}
+.alert .body{padding:19px 16px 16px}
+.alert h3{margin:0 0 4px;font-size:17px;font-weight:600}
+.alert p{margin:0;font-size:13px;line-height:1.35}
+.alert code{display:block;margin-top:8px;font-family:var(--mono);font-size:11px;color:var(--dim);word-break:break-all}
+.alert .acts{display:flex;border-top:.5px solid rgba(255,255,255,.18)}
+.alert .acts button{flex:1;background:none;border:0;padding:12px 8px;font-size:17px;color:var(--blue)}
+.alert .acts button+button{border-left:.5px solid rgba(255,255,255,.18)}
+.alert .acts .strong{font-weight:600}.alert .acts .red{color:var(--red)}
+.shakebox{animation:sh .4s}
+
+/* NICHT VERFÜGBAR */
+.na{position:fixed;inset:0;background:#000;display:flex;flex-direction:column;align-items:center;justify-content:center;text-align:center;padding:24px}
+.na h1{font-size:28px;font-weight:700;margin:22px 0 6px}
+.na p{color:var(--dim);margin:0 0 30px;font-size:17px}
+.na .track{width:180px;height:5px;border-radius:3px;background:#3a3a3c;overflow:hidden}
+.na .track span{display:block;height:100%;width:0;background:#fff;transition:width .3s}
+.na small{margin-top:12px;color:var(--dim);font-size:13px;font-variant-numeric:tabular-nums}
+.na .fixbtn{position:absolute;left:16px;right:16px;bottom:calc(env(safe-area-inset-bottom,0px) + 22px);max-width:488px;margin:0 auto}
+
+/* GRUNDELEMENTE */
+.btn{display:block;width:100%;padding:15px;border:0;border-radius:14px;background:var(--blue);color:#fff;font-weight:600;font-size:17px}
+.btn.gray{background:var(--cell2);color:var(--blue)}
+.btn[hidden]{display:none}
+.large{font-size:34px;font-weight:700;letter-spacing:.01em;margin:6px 0 4px;line-height:1.15}
+.ver{font-size:13px;color:var(--dim);font-family:var(--mono)}
+.head{margin-bottom:14px}
+.head h2{font-size:28px;font-weight:700;margin:0 0 2px;line-height:1.2;word-break:break-word}
+.back{background:none;border:0;color:var(--blue);padding:4px 0;margin:0 0 6px;font-size:17px}
+.secthead{font-size:13px;color:var(--dim);text-transform:none;margin:22px 4px 6px}
+.group{background:var(--cell);border-radius:12px;overflow:hidden;margin:0}
+.manual,.story{font-size:16px;line-height:1.5;color:#e5e5ea;margin:0 0 14px}
+.story{color:var(--dim)}
+.rule{font-size:14px;color:var(--orange);margin:0 0 14px;line-height:1.45}
+.task{background:var(--cell);border-radius:12px;padding:14px;font-size:15px;line-height:1.5;margin-bottom:14px}
+.task strong{color:var(--orange)}
+.task summary{color:var(--blue);cursor:pointer}
+
+/* TERMINAL */
+.term{font-family:var(--mono);font-size:13px;line-height:1.75;white-space:pre-wrap;min-height:50vh;padding-top:8px}
+.term .e{color:var(--red)}.term .w{color:var(--orange)}.term .o{color:var(--green)}
+.cursor{display:inline-block;width:.6em;background:var(--text);animation:bl 1s steps(1) infinite}
+@keyframes bl{50%{opacity:0}}
+
+/* KONSOLE */
+.ring{display:flex;align-items:center;gap:16px;background:var(--cell);border-radius:12px;padding:14px;margin-bottom:6px}
+.bar{flex:1;height:6px;border-radius:3px;background:var(--cell2);overflow:hidden}
+.bar span{display:block;height:100%;background:var(--green);transition:width .6s}
+.code{font-family:var(--mono);letter-spacing:.2em;font-size:15px}
+.wx{display:flex;align-items:center;justify-content:space-between;gap:12px;padding:12px 14px;font-size:16px}
+.switch{width:51px;height:31px;border-radius:16px;border:0;background:#39393d;position:relative;flex:0 0 auto;transition:background .2s}
+.switch::after{content:"";position:absolute;top:2px;left:2px;width:27px;height:27px;border-radius:50%;background:#fff;transition:left .2s;box-shadow:0 2px 4px rgba(0,0,0,.3)}
+.switch[aria-checked="true"]{background:var(--green)}
+.switch[aria-checked="true"]::after{left:22px}
+.mods{list-style:none;margin:0;padding:0}
+.mods li+li{border-top:.5px solid var(--sep);margin-left:52px}
+.mods li+li button{margin-left:-52px;width:calc(100% + 52px)}
+.mods button{width:100%;display:grid;grid-template-columns:30px 1fr auto 12px;align-items:center;gap:10px;padding:11px 14px;background:none;border:0;text-align:left;min-height:56px}
+.mods button:disabled{opacity:.4;cursor:default}
+.n{width:30px;height:30px;border-radius:8px;display:flex;align-items:center;justify-content:center;font-size:15px;font-weight:600;background:var(--cell2)}
+.n.done{background:var(--green);color:#000}.n.open{background:var(--orange);color:#000}
+.mname{font-family:var(--mono);font-size:15px}
+.mloc{display:block;font-size:13px;color:var(--dim);margin-top:2px}
+.st{font-size:15px;color:var(--dim)}
+.chev{color:#5a5a5f;font-size:18px}
+.linkbtn{display:block;margin:28px auto 0;background:none;border:0;color:var(--red);font-size:16px;padding:8px}
+
+/* MODUL */
+.loc{background:var(--cell);border-radius:12px;padding:12px 14px;margin:0 0 14px;font-size:15px;line-height:1.45;border-left:4px solid var(--orange)}
+.loc.rain{border-color:var(--blue)}
+.piece{background:var(--cell);border-radius:16px;padding:26px 18px;margin:0 0 14px;text-align:center}
+.piece .main{font-family:var(--mono);font-size:clamp(32px,11vw,48px);font-weight:600;line-height:1.25;white-space:pre-wrap;word-break:break-word}
+.piece .main.sm{font-family:var(--sans);font-size:18px;font-weight:400;text-align:left;line-height:1.55}
+.piece .main.sm strong{display:block;margin-top:4px;font-size:21px}
+.term-tab .piece .main.sm{font-family:var(--mono)}
+.piece .sub{font-size:14px;color:var(--dim);margin-top:12px;line-height:1.45}
+.mirror{display:inline-block;transform:scaleX(-1);font-family:Georgia,"Times New Roman",serif;font-size:min(42vw,200px);font-weight:700;line-height:1}
+.grid{display:grid;gap:4px;margin:0 0 14px;font-family:var(--mono)}
+.grid.ascii{grid-template-columns:repeat(auto-fill,minmax(62px,1fr))}
+.grid.ascii div{background:var(--cell);border-radius:8px;padding:9px 4px;text-align:center;font-size:14px}
+.grid.ascii b{color:var(--orange);margin-left:6px}
+table.poly{border-collapse:separate;border-spacing:4px;margin:0 auto 14px;font-family:var(--mono);font-size:20px}
+table.poly td{width:46px;height:46px;text-align:center;background:var(--cell);border-radius:8px}
+table.poly th{color:var(--orange);font-size:14px;font-weight:600}
+.caesar{background:var(--cell);border-radius:12px;padding:14px;margin-bottom:14px}
+.caesar label{display:block;font-size:13px;color:var(--dim);margin:4px 0 6px}
+.caesar input[type=range]{width:100%;padding:0;background:none;accent-color:var(--blue);margin-bottom:6px}
+.caesar .out{font-family:var(--mono);font-size:22px;letter-spacing:.1em;padding:12px;background:#000;border-radius:8px;margin-top:6px;min-height:1.6em;word-break:break-all;color:var(--green)}
+.setz{font-family:var(--mono);font-size:clamp(26px,9vw,38px);text-align:center;letter-spacing:.08em;padding:18px;background:var(--cell);border-radius:12px;margin-bottom:14px}
+.morseflash{position:fixed;inset:0;z-index:40;background:#000;display:flex;align-items:center;justify-content:center;color:#444;font-size:14px}
+.morseflash.on{background:#fff}
+form{display:flex;gap:8px}
+input{flex:1;min-width:0;font-family:var(--mono);font-size:17px;padding:14px;background:var(--cell);color:var(--text);border:0;border-radius:12px;text-transform:uppercase}
+input::placeholder{color:var(--dim);text-transform:none;font-family:var(--sans)}
+.go{padding:0 18px;border:0;border-radius:12px;background:var(--blue);color:#fff;font-weight:600}
+.fb{min-height:1.5em;font-size:14px;margin:10px 4px}
+.fb.e{color:var(--red)}
+.shake{animation:sh .35s}
+@keyframes sh{25%{transform:translateX(-7px)}75%{transform:translateX(7px)}}
+.ok{background:var(--cell);border-radius:16px;padding:20px;margin-top:4px;text-align:center}
+.ok h3{margin:0 0 4px;color:var(--green);font-size:20px}
+.frag{font-family:var(--mono);font-size:52px;font-weight:600;margin:6px 0 10px}
+.sync{background:#000;border-radius:12px;padding:14px;margin-top:6px;font-size:15px;line-height:1.45}
+.sync b{font-family:var(--mono);font-size:24px;color:var(--orange);display:block;margin-top:4px;letter-spacing:.08em}
+table.sheet{width:100%;border-collapse:collapse;font-size:14px}
+table.sheet td{border-bottom:.5px solid var(--sep);padding:10px 12px;vertical-align:top}
+table.sheet tr:last-child td{border-bottom:0}
+table.sheet td:nth-child(2){font-family:var(--mono);color:var(--orange)}
+.admin{border:1px solid var(--orange)}
+
+.hintbtn{background:var(--cell2);border:0;border-radius:10px;color:var(--blue);padding:10px 14px;font-size:15px}
+.naback{position:absolute;top:calc(env(safe-area-inset-top,0px) + 12px);left:16px}
+.back{display:inline-flex;align-items:center;min-height:44px}
+.warm{display:flex;gap:14px;align-items:center;text-align:left;background:#000;border-radius:12px;padding:14px;margin:6px 0 10px;font-size:15px;line-height:1.45}
+.warm strong{color:#64d2ff}.warm b{color:var(--orange);font-weight:600}
+.therm{flex:0 0 14px;height:64px;border-radius:7px;background:var(--cell2);position:relative;overflow:hidden}
+.therm span{position:absolute;left:0;right:0;bottom:0;height:12%;background:#64d2ff;animation:warmup 2.2s 1s ease-in-out forwards}
+@keyframes warmup{to{height:92%;background:var(--red)}}
+.slots{display:grid;gap:2px;background:#000;border-radius:10px;padding:2px;margin-top:4px}
+.slots.solved{gap:0;outline:2px solid var(--green)}
+.slot{padding:0;border:0;background:var(--cell2);aspect-ratio:20/46;border-radius:4px;overflow:hidden}
+.slot.empty{border:1.5px dashed #5a5a5f;background:transparent}
+.tray{display:flex;flex-wrap:wrap;gap:8px;margin-top:12px;min-height:10px}
+.tile{padding:0;border:2px solid transparent;border-radius:6px;overflow:hidden;width:calc(20% - 7px);aspect-ratio:20/46;background:none}
+.tile.sel{border-color:var(--orange)}
+.strip{display:block;width:100%;height:100%;image-rendering:pixelated}
+/* ROLLEN */
+.badge{width:76px;height:76px;border-radius:20px;background:var(--blue);display:flex;align-items:center;justify-content:center;font-family:var(--mono);font-size:30px;font-weight:700;margin:20px 0 14px}
+.badge.root{background:var(--orange);color:#000}
+.rolelist button{width:100%;display:flex;justify-content:space-between;align-items:center;padding:13px 14px;background:none;border:0;border-top:.5px solid var(--sep);text-align:left}
+.rolelist button:first-child{border-top:0}
+.rolelist span{color:var(--dim);font-size:14px;font-family:var(--mono)}
+
+/* FINALE */
+.big{font-family:var(--mono);font-size:clamp(40px,13vw,62px);font-weight:700;letter-spacing:.12em;margin:18px 0;color:var(--green);text-align:center}
+@media (prefers-reduced-motion:reduce){*{animation:none!important;transition:none!important}}
+</style>
+</head>
+<body>
+<div id="app"></div>
+<script>
+/* =========================================================
+   HIER ANPASSEN
+   ========================================================= */
+const CONFIG = {
+  system: "junggeselle_v1.0",
+  fixed: "ehemann_v1.0",
+  updateDate: "19.12.2025",
+  stopcode: "BACHELOR_PROCESS_TERMINATING",
+  finale: "Der Code öffnet die Box. Danach geht es weiter zur nächsten Aktivität.",
+  // Zugangscodes für die Crew. Namen eintragen, Codes verteilt ihr vorab.
+  codes: {
+    "ALPHA":   {role:"A",   name:""},
+    "BRAVO":   {role:"B",   name:""},
+    "CHARLIE": {role:"C",   name:""},
+    "DELTA":   {role:"D",   name:""},
+    "ECHO":    {role:"E",   name:""},
+    "FOXTROT": {role:"F",   name:""},
+    "DEBUG":   {role:"dbg", name:""}
+  },
+  adminCode: "SPIELLEITUNG",
+  // Checkpoints: Karte mit Brautpaar-Logo und Code, die ihr vor Ort versteckt.
+  // Index 1 = Modul 2 usw. lat/lng = genaues Versteck (bitte beim Probelauf ersetzen).
+  checkpoints: {
+    1: {code:"DOMBUG-12",   lat:49.99929, lng:8.27390, find:"Irgendwo am Markt ist eine Karte mit dem Brautpaar versteckt.",       rain:"Fragt im Dom-Café nach dem Umschlag für Root."},
+    2: {code:"KIRSCH-404",  lat:49.99731, lng:8.27333, find:"Im Kirschgarten wartet die nächste Karte mit dem Brautpaar.",           rain:"Fragt im Café Lille Hus nach dem Umschlag für Root."},
+    3: {code:"RHEIN-1912",  lat:49.99987, lng:8.27805, find:"Am Fischtorplatz versteckt sich die nächste Karte.",                    rain:"Fragt im Augustinerkeller nach dem Umschlag für Root."},
+    5: {code:"LETTER-1450", lat:49.99896, lng:8.27190, find:"Auf dem Gutenbergplatz liegt die letzte Karte mit dem Brautpaar.",       rain:"Fragt in der Weinstube Hottum nach dem Umschlag für Root."}
+  },
+  // Glühwein-Pausen nach den Modulen (Index 0 = Modul 1). Zum Abschalten: warmup: null
+  warmup: {
+    1: {temp:"4 °C",  text:"Die Firewall ist gepatcht, aber die Hardware ist im Novemberwind ausgekühlt."},
+    2: {temp:"3 °C",  text:"Das Netzwerk läuft wieder. Der Kältesensor meldet Frostgefahr."},
+    3: {temp:"2 °C",  text:"Speicher wiederhergestellt, aber der RAM friert ein. Der Rhein ist kalt."},
+    4: {temp:"1 °C",  text:"Sortierung abgeschlossen. Aber vom Rumstehen auf dem Gehweg ist der ganze Cluster durchgefroren."},
+    5: {temp:"0 °C",  text:"Letzter Patch eingespielt. Für den Neustart braucht das System Betriebstemperatur."}
+  },
+  // Modul 4: Fragen über den Bräutigam. Antworten bitte eintragen!
+  // Modul 4 „Wer war's?“: Fun Facts über Leute aus der Crew. q = Fakt, a = wem er gehört.
+  // Die Node, die vorliest, sollte NICHT die Person sein, um die es geht.
+  quiz: [
+    {q:"[FUN FACT 1, z. B. Wer von uns ist schon mal im Urlaub vom Roller gefallen?]", a:"[NAME 1]"},
+    {q:"[FUN FACT 2]", a:"[NAME 2]"},
+    {q:"[FUN FACT 3]", a:"[NAME 3]"},
+    {q:"[FUN FACT 4]", a:"[NAME 4]"},
+    {q:"[FUN FACT 5]", a:"[NAME 5]"}
+  ]
+};
+/* ========================================================= */
+
+const MODS = [
+ { file:"boot.sys", ort:"Weck, Worscht un Woi", frag:"1", answers:["MARKT"], tool:"ascii",
+   story:"Der Bootloader findet das nächste Ziel nicht mehr. Die Adresse liegt nur noch als Hex-Bytes vor, durcheinander und verteilt auf die Nodes. Jedes Byte trägt einen Marker.",
+   manual:"Lass dir von deinen Nodes Bytes und Marker vorlesen. Die richtige Reihenfolge ergibt sich aus einem Datum, das du nie vergessen darfst. Übersetz die Bytes dann mit der Tabelle.",
+   side:"Bevor ihr aufbrecht: Root macht jeder Person am Tisch ein ernst gemeintes Kompliment.",
+   hint:"Das Hochzeitsdatum Ziffer für Ziffer lesen: 1 9 1 2 2 0 2 5. Jede Ziffer zählt nur beim ersten Mal, also 1, 9, 2, 0, 5.",
+   nodes:{A:["54","Marker 5"],B:["4B","Marker 0"],C:["4D","Marker 1"],D:["52","Marker 2"],E:["41","Marker 9"],
+          F:["Sortierregel","Die Marker werden in der Reihenfolge gelesen, in der ihre Ziffern in einem bestimmten Datum vorkommen (TT.MM.JJJJ, Ziffer für Ziffer). Taucht eine Ziffer mehrfach auf, zählt nur ihr erstes Auftreten, alle Wiederholungen werden gestrichen. Beispiel: 03.03.2033 ergibt 0 3 0 3 2 0 3 3, nach dem Streichen bleibt 0, 3, 2. Welches Datum gemeint ist, weiß nur Root."]} },
+ { file:"firewall.dll", ort:"Marktplatz am Dom", frag:"9", answers:["KIRSCHGARTEN"], tool:"caesar",
+   story:"Die Firewall blockiert den Weg. Das Ziel ist mit einer uralten Verschlüsselung gesichert.",
+   manual:"Deine Nodes haben Teile eines Geheimtexts, durcheinander, und eine Node kennt die Anleitung. Tipp die Teile ein, stell die Verschiebung ein und bring sie in die richtige Reihenfolge.",
+   side:"Gruppenfoto vor dem Dom. Alle machen das Gesicht von Root beim Debuggen.",
+   hint:"DOMBUG hat 6 Buchstaben, geteilt durch 2 ergibt 3. Aus N wird K. Ein Teil ergibt BUG und fliegt raus, die anderen tauscht ihr, bis ein Ort in Mainz herauskommt.",
+   nodes:{A:["JDU","Ein Teil des Geheimtexts. Welcher Teil an welche Stelle gehört, weiß niemand."],C:["NLU","Ein Teil des Geheimtexts. Welcher Teil an welche Stelle gehört, weiß niemand."],D:["VFK","Ein Teil des Geheimtexts. Welcher Teil an welche Stelle gehört, weiß niemand."],E:["EXJ","Ein Teil des Geheimtexts. Welcher Teil an welche Stelle gehört, weiß niemand."],F:["WHQ","Ein Teil des Geheimtexts. Welcher Teil an welche Stelle gehört, weiß niemand."],
+          B:["Anleitung","Zum Entschlüsseln geht es im Alphabet zurück, um eine bestimmte Zahl von Stellen. Diese Zahl findet ihr so: Nehmt den Freischaltcode, den ihr gerade gefunden habt, und zählt nur seine Buchstaben. Teilt das Ergebnis durch die Zahl der Menschen, die am 19.12.2025 Ja gesagt haben. Achtung: Im Geheimtext hat sich ein Bug eingeschlichen. Ein Teil gehört nicht dazu."]} },
+ { file:"network.cfg", ort:"Kirschgarten", frag:"1", answers:["RHEIN"], tool:"morse",
+   story:"Das Netzwerk ist auf Morse-Fallback gefallen. Root kann nur senden, die Nodes können nur lesen.",
+   manual:"Halte dein Handy hoch, sodass alle es sehen, und sende das Signal. Deine Nodes dekodieren es. Du kannst beliebig oft senden.",
+   side:"Root ruft laut „Hello World“ über den Platz.",
+   hint:"Das Wort hat 5 Buchstaben und ist ein Fluss.",
+   nodes:{A:["A  .-\nB  -...\nC  -.-.\nD  -..\nE  .","Morse-Tabelle, Teil 1",1],B:["F  ..-.\nG  --.\nH  ....\nI  ..\nJ  .---","Morse-Tabelle, Teil 2",1],
+          C:["K  -.-\nL  .-..\nM  --\nN  -.\nO  ---","Morse-Tabelle, Teil 3",1],E:["P  .--.\nQ  --.-\nR  .-.\nS  ...\nT  -","Morse-Tabelle, Teil 4",1],
+          F:["U  ..-\nV  ...-\nW  .--\nX  -..-\nY  -.--\nZ  --..","Morse-Tabelle, Teil 5",1],
+          D:["Anleitung","Kurzes Licht ist ein Punkt, langes ein Strich. Eine längere Pause bedeutet: neuer Buchstabe. Schreib mit, das Wort hat 5 Buchstaben. Die Morse-Tabelle haben die anderen, verteilt auf fünf Leute."]} },
+ { file:"memory.dat", ort:"Rheinufer", frag:"2", answers:["LIEBE"], tool:"quiz",
+   story:"Speicherfehler! Die Benutzerprofile im Cluster sind durcheinandergeraten. Root muss jedem Datensatz die richtige Person zuordnen.",
+   manual:"Deine Nodes lesen dir Fun Facts über Leute aus der Runde vor. Du musst erraten, wer gemeint ist. Richtig geraten: Du bekommst einen Fragment-Code. Falsch: Strafshot, den Code gibt es trotzdem. Jeder Code lädt ein Bildteil. Setz die Teile in die richtige Reihenfolge, dann ergibt sich das Lösungswort. Vorsicht, alle dürfen dich auf falsche Fährten locken.",
+   side:"Sobald alle Buchstaben da sind, kommt eine besondere Nachricht für Root. Er hört sie laut vor allen ab.",
+   hint:"Achte beim Puzzeln auf das Bild: Brautpaar, Herz und Boden müssen zusammenpassen. Das Wort passt gut zu einer Hochzeit.",
+   nodes:{A:["q0","7F",4],B:["q1","C3",1],D:["q2","1E",5],E:["q3","A9",2],F:["q4","4D",3],
+          C:["Anleitung","Du moderierst: Die anderen lesen Root nacheinander einen Fun Fact vor, er muss erraten, wer gemeint ist. Du entscheidest, ob ein Tipp zählt, und zählst die Strafshots. Für jeden Fakt bekommt Root einen Fragment-Code. Damit lädt er Bildteile, die er bei sich in die richtige Reihenfolge puzzeln muss. Wenn alle Codes raus sind, gib der Spielleitung ein Zeichen: Dann kommt eine besondere Nachricht für Root."]} },
+ { file:"sort.exe", ort:"Unterwegs zum Gutenbergplatz", frag:"2", answers:["PROST"], tool:"bubble",
+   traps:{SPORT:"Falsche Disziplin. Was macht man mit Glühwein?"},
+   story:"Der Sortieralgorithmus ist abgestürzt. Die Datenpakete liegen in falscher Reihenfolge im Speicher. Der Cluster muss sich selbst sortieren, Paket für Paket.",
+   manual:"Du bist der Prozessor. Lass die Nodes, die ein Datenpaket haben, sich auf dem Gehweg in einer Reihe aufstellen. Ruf dann von links nach rechts immer zwei Nachbarn auf: „Platz 1 und 2, vergleichen!“ Sie zeigen sich gegenseitig ihre Zahl. Steht die größere links, tauschen sie, und du zählst den Tausch. Dann die nächsten zwei. Am Ende der Reihe fängst du wieder vorne an, bis niemand mehr tauschen muss. Dann liest du die Buchstaben von links nach rechts.",
+   side:"Sobald das Wort gefunden ist: Alle machen genau das, und Root hält eine 20-Sekunden-Rede.",
+   hint:"Rechnet die Binärzahlen um: 0011 ist 3, 0101 ist 5, 0110 ist 6, 1001 ist 9, 1100 ist 12, 1111 ist 15. Und hört nicht zu früh auf zu sortieren.",
+   nodes:{A:["S\n1001","Zeig deine Zahl nur deinem direkten Nachbarn, wenn Root euch zum Vergleichen aufruft. Niemals laut sagen!"],B:["P\n0011","Zeig deine Zahl nur deinem direkten Nachbarn, wenn Root euch zum Vergleichen aufruft. Niemals laut sagen!"],C:["T\n1100","Zeig deine Zahl nur deinem direkten Nachbarn, wenn Root euch zum Vergleichen aufruft. Niemals laut sagen!"],D:["R\n0101","Zeig deine Zahl nur deinem direkten Nachbarn, wenn Root euch zum Vergleichen aufruft. Niemals laut sagen!"],F:["O\n0110","Zeig deine Zahl nur deinem direkten Nachbarn, wenn Root euch zum Vergleichen aufruft. Niemals laut sagen!"],
+          E:["!\n1111","Du hast ein Datenpaket und spielst mit. Außerdem erklärst du den anderen die Regeln: Wer ein Paket hat, stellt sich in eine Reihe. Root ruft immer zwei Nachbarn auf. Nur diese beiden zeigen sich gegenseitig ihre Zahl, niemand sagt sie laut. Steht die größere Zahl links, tauschen die beiden die Plätze. Das wiederholt sich, bis niemand mehr tauschen muss. So rechnet man Binärcode um: Jede der vier Stellen hat einen festen Wert. Steht dort eine 1, zählt der Wert mit, bei einer 0 nicht.<br><br><span style=\"font-family:var(--mono);font-size:16px;color:var(--text);line-height:1.6\">Wert:&nbsp;&nbsp;&nbsp;8 4 2 1<br>Ziffer: 1 0 1 0<br>&rarr; 8 + 2 = 10</span>"]} },
+ { file:"print.exe", ort:"Gutenbergplatz", frag:"6", answers:["JAWORT"], tool:"setz",
+   story:"Letzter Patch. Gutenberg hat hier mit beweglichen Lettern gedruckt, und die stehen bekanntlich spiegelverkehrt. Jede Node ist jetzt eine Letter.",
+   manual:"Du hast den Setzkasten-Plan. Stell deine Nodes danach in eine Reihe, mit dem Gesicht zu dir, und lies das Wort ab. Kleiner Tipp aus der Druckerei: Gutenberg las seine Druckform immer im Spiegel.",
+   side:"Mach das Foto so, dass man das Wort lesen kann. Das ist euer Erinnerungsbild an den JGA.",
+   hint:"Schaut euch die Reihe durch die Selfie-Kamera an. Die spiegelt alles zurück.",
+   nodes:{A:["O","Gib den Tipp erst, wenn Root das Wort gelesen hat! Damit das Erinnerungsfoto lesbar bleibt, braucht er das gespiegelte Bild. Am iPhone: Einstellungen → Kamera → „Frontkamera spiegeln“ einschalten. Bei Android ist das meist schon so, sonst in den Kamera-Einstellungen nach „Spiegeln“ suchen. Oder ganz einfach: einen Screenshot machen, solange die Kamera offen ist.",2],B:["J","",2],C:["T","",2],D:["A","",2],E:["R","",2],F:["W","",2]} }
+];
+const SETZ="C · E · A · F · D · B";
+const ROLES={
+ root:{name:"Root",short:"R",desc:"Du bist der Bräutigam und das System, das repariert werden muss. Du hast die Werkzeuge und das Handbuch und gibst die Lösungen ein. Die Rätselteile haben aber nur deine Nodes."},
+ A:{name:"Node A",short:"A",desc:"Meistens hältst du ein Fragment der Lösung und liest es vor. In einem Modul hast du stattdessen die Anleitung, dann erklärst du den anderen, wie das Rätsel funktioniert."},
+ B:{name:"Node B",short:"B",desc:"Meistens hältst du ein Fragment der Lösung und liest es vor. In einem Modul hast du stattdessen die Anleitung, dann erklärst du den anderen, wie das Rätsel funktioniert."},
+ C:{name:"Node C",short:"C",desc:"Meistens hältst du ein Fragment der Lösung und liest es vor. In einem Modul hast du stattdessen die Anleitung, dann erklärst du den anderen, wie das Rätsel funktioniert."},
+ D:{name:"Node D",short:"D",desc:"Meistens hältst du ein Fragment der Lösung und liest es vor. In einem Modul hast du stattdessen die Anleitung, dann erklärst du den anderen, wie das Rätsel funktioniert."},
+ E:{name:"Node E",short:"E",desc:"Meistens hältst du ein Fragment der Lösung und liest es vor. In einem Modul hast du stattdessen die Anleitung, dann erklärst du den anderen, wie das Rätsel funktioniert."},
+ F:{name:"Node F",short:"F",desc:"Meistens hältst du ein Fragment der Lösung und liest es vor. In einem Modul hast du stattdessen die Anleitung, dann erklärst du den anderen, wie das Rätsel funktioniert."},
+ dbg:{name:"Debugger",short:"🐞",desc:"Du hast die Hinweise. Verrate sie nur, wenn das Team feststeckt. Jeder Hinweis kostet Root einen Strafshot."}
+};
+
+const KEY="jga-bug-v4";
+const app=document.getElementById("app");
+let S=load();
+function blank(){return{phase:"lock",role:null,name:"",solved:[],unlocked:[],hintUsed:[],weather:false,admin:false,hist:[],cp:[]}}
+function load(){try{const r=localStorage.getItem(KEY);if(r)return Object.assign(blank(),JSON.parse(r))}catch(e){}return blank()}
+function save(){try{localStorage.setItem(KEY,JSON.stringify(S))}catch(e){}}
+const norm=s=>s.toUpperCase().replace(/Ä/g,"AE").replace(/Ö/g,"OE").replace(/Ü/g,"UE").replace(/ß/g,"SS").replace(/[^A-Z0-9]/g,"");
+const isRoot=()=>S.role==="root";
+const solved=i=>S.solved.includes(i);
+const open=i=>S.admin||(isRoot()?(i===0||solved(i-1)):(i===0||S.unlocked.includes(i)));
+const roleName=()=>(ROLES[S.role]||{}).name||"";
+let timers=[];
+let STREAM=null;function stopCam(){if(STREAM){STREAM.getTracks().forEach(t=>t.stop());STREAM=null}}
+function clear(){timers.forEach(clearTimeout);timers=[];stopCam()}
+function go(p,extra){clear();S.hist=S.hist||[];
+  if(p!==S.phase||(extra!==undefined&&extra!==S.cur)){S.hist.push({p:S.phase,c:S.cur});if(S.hist.length>40)S.hist.shift()}
+  S.phase=p;if(extra!==undefined)S.cur=extra;save();render();window.scrollTo(0,0)}
+function back(){const h=(S.hist||[]).pop();if(!h)return;clear();document.querySelectorAll(".scrim,.morseflash").forEach(x=>x.remove());
+  S.phase=h.p;S.cur=h.c;save();render();window.scrollTo(0,0)}
+const BACK=()=>(S.hist&&S.hist.length)?`<button class="back" data-back aria-label="Zurück">‹ Zurück</button>`:"";
+document.addEventListener("click",e=>{if(e.target.closest("[data-back]"))back()});
+
+/* Rolle per Link-Zusatz, z. B. #ALPHA (falls der Link das durchreicht) */
+(function(){const m=norm(decodeURIComponent((location.hash||"").slice(1)+(location.search||"")));
+  if(m.includes(norm(CONFIG.adminCode)))S.admin=true;
+  for(const c in CONFIG.codes)if(m.endsWith(c)&&!S.role){S.role=CONFIG.codes[c].role;S.name=CONFIG.codes[c].name}save()})();
+
+/* ---------- Dialog im iOS-Stil (ersetzt confirm) ---------- */
+function dialog({title,text,code,actions}){
+  return new Promise(res=>{const sc=document.createElement("div");sc.className="scrim";
+    sc.innerHTML=`<div class="alert" role="alertdialog" aria-modal="true"><div class="body"><h3>${title}</h3><p>${text||""}</p>${code?`<code>${code}</code>`:""}</div>
+    <div class="acts">${actions.map((a,k)=>`<button data-k="${k}" class="${a.cls||""}">${a.label}</button>`).join("")}</div></div>`;
+    document.body.appendChild(sc);
+    sc.querySelectorAll("button").forEach(b=>b.onclick=()=>{const a=actions[+b.dataset.k];
+      if(a.keep){a.keep(sc);return}sc.remove();res(a.value)});
+    const f=sc.querySelector(".strong")||sc.querySelector("button");f&&f.focus();
+  })}
+
+/* ---------- Sound (Medienlautstärke über Video-Element) ---------- */
+function wav(parts){
+  const sr=22050;let samples=[];
+  parts.forEach(([f,d])=>{const n=Math.floor(sr*d);for(let i=0;i<n;i++){const env=Math.min(1,i/200,(n-i)/200);
+    samples.push(f?Math.sign(Math.sin(2*Math.PI*f*i/sr))*0.55*env:0)}});
+  const len=samples.length,buf=new ArrayBuffer(44+len*2),v=new DataView(buf);
+  const ws=(o,s)=>{for(let i=0;i<s.length;i++)v.setUint8(o+i,s.charCodeAt(i))};
+  ws(0,"RIFF");v.setUint32(4,36+len*2,true);ws(8,"WAVE");ws(12,"fmt ");v.setUint32(16,16,true);v.setUint16(20,1,true);v.setUint16(22,1,true);
+  v.setUint32(24,sr,true);v.setUint32(28,sr*2,true);v.setUint16(32,2,true);v.setUint16(34,16,true);ws(36,"data");v.setUint32(40,len*2,true);
+  samples.forEach((s,i)=>v.setInt16(44+i*2,s*32767,true));
+  let bin="";const b=new Uint8Array(buf);for(let i=0;i<b.length;i+=8192)bin+=String.fromCharCode.apply(null,b.subarray(i,i+8192));
+  return"data:audio/wav;base64,"+btoa(bin)}
+let SND={};
+function play(src){
+  try{if(navigator.audioSession)navigator.audioSession.type="playback"}catch(e){}
+  const fallback=()=>{try{const au=new Audio(src);au.volume=1;au.play().catch(()=>{})}catch(e){}};
+  try{const vd=document.createElement("video");vd.setAttribute("playsinline","");vd.playsInline=true;vd.volume=1;
+    vd.style.cssText="position:fixed;width:1px;height:1px;opacity:0;pointer-events:none";vd.src=src;document.body.appendChild(vd);
+    vd.onended=()=>vd.remove();vd.onerror=()=>{vd.remove();fallback()};
+    const p=vd.play();if(p&&p.catch)p.catch(()=>{vd.remove();fallback()})}catch(e){fallback()}}
+function sound(kind){
+  if(!SND.alarm){const a=[];for(let k=0;k<6;k++)a.push([988,.18],[0,.04],[740,.18],[0,.04]);a.push([0,.15]);for(let k=0;k<3;k++)a.push([1318,.09],[0,.06]);
+    SND.alarm=wav(a);SND.buzz=wav([[140,.12],[0,.04],[110,.22]]);SND.ok=wav([[660,.09],[880,.09],[1320,.2]])}
+  play(SND[kind]);
+  try{navigator.vibrate&&navigator.vibrate(kind==="alarm"?[400,150,400,150,800]:kind==="buzz"?[120,60,120]:[80])}catch(e){}
+}
+
+/* ---------- Sperrbildschirm ---------- */
+const LOCKSVG=`<svg class="pad" viewBox="0 0 24 24" fill="#fff" aria-hidden="true"><path d="M7 10V7a5 5 0 0 1 10 0v3h1a2 2 0 0 1 2 2v8a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2v-8a2 2 0 0 1 2-2h1zm2 0h6V7a3 3 0 0 0-6 0v3z"/></svg>`;
+function renderLock(){
+  const now=()=>new Date();
+  const fmtT=d=>d.toLocaleTimeString("de-DE",{hour:"2-digit",minute:"2-digit"});
+  const fmtD=d=>d.toLocaleDateString("de-DE",{weekday:"long",day:"numeric",month:"long"});
+  app.innerHTML=`<div class="lock">${LOCKSVG}<div class="date" id="dd">${fmtD(now())}</div><div class="time" id="tt">${fmtT(now())}</div>
+    <button class="notif again" id="nt"><div class="ico">⚠️</div><div><div class="row"><b>Kritische Warnung</b><span>jetzt</span></div>
+    <p><strong>Systemfehler erkannt</strong><br>${CONFIG.system} reagiert nicht mehr. Tippen, um Details anzuzeigen.</p></div></button>
+    <div class="foot">Zum Öffnen tippen</div></div>`;
+  const tick=()=>{const t=document.getElementById("tt");if(!t)return;t.textContent=fmtT(now());timers.push(setTimeout(tick,5000))};tick();
+  document.getElementById("nt").onclick=async()=>{sound("alarm");
+    let tries=0;
+    await dialog({title:"Kritischer Systemfehler",
+      text:`Seit dem Update am ${CONFIG.updateDate} laufen ${CONFIG.fixed} und ${CONFIG.system} gleichzeitig. Der alte Prozess lässt sich nicht beenden. Das System ist instabil.`,code:"Stoppcode: "+CONFIG.stopcode,
+      actions:[{label:"Später",keep:sc=>{tries++;sound("buzz");const al=sc.querySelector(".alert");al.classList.remove("shakebox");void al.offsetWidth;al.classList.add("shakebox");
+        sc.querySelector("h3").textContent=tries>1?"Wirklich nicht.":"Später ist keine Option."}},
+        {label:"Reparieren",cls:"strong",value:1}]});
+    go("na")};
+}
+function renderNA(){
+  app.innerHTML=`<div class="na">${BACK().replace('class="back"','class="back naback"')}${LOCKSVG.replace('class="pad"','width="34" height="34"')}
+    <h1>Junggeselle nicht verfügbar</h1><p id="msg">Wiederherstellung wird vorbereitet …</p>
+    <div class="track"><span id="bar"></span></div><small id="pct">0 %</small>
+    <button class="btn fixbtn" id="fix" hidden>Reparatur starten</button></div>`;
+  let p=0;const step=()=>{p=Math.min(100,p+Math.ceil(Math.random()*8));document.getElementById("bar").style.width=p+"%";document.getElementById("pct").textContent=p+" %";
+    if(p===40)document.getElementById("msg").textContent="Fehlerbericht wird gesammelt …";
+    if(p<100)timers.push(setTimeout(step,160+Math.random()*240));else{document.getElementById("msg").textContent="Reparatur erforderlich.";document.getElementById("fix").hidden=false}};
+  timers.push(setTimeout(step,700));
+  document.getElementById("fix").onclick=()=>go("boot");
+}
+function renderBoot(){
+  const lines=[["","> Starte Reparaturmodus …"],["","> Scanne "+CONFIG.system+" …"],
+    ...MODS.map(m=>["e","[FEHLER] "+m.file+" beschädigt"]),
+    ["","> Update "+CONFIG.fixed+" installiert am "+CONFIG.updateDate+" … OK"],
+    ["w","[KONFLIKT] "+CONFIG.system+" läuft trotz Update im Hintergrund weiter"],
+    ["","> Reparatur nur im Cluster möglich."],["o","> Root allein kann nichts lösen. Die Nodes allein auch nicht."],["o","> Bitte anmelden."]];
+  app.innerHTML=`<div class="wrap">${BACK()}<div class="term" id="t"></div><button class="btn" id="open" hidden style="margin-top:20px">Anmelden</button></div>`;
+  const t=document.getElementById("t");let i=0;
+  const next=()=>{if(i<lines.length){const d=document.createElement("div");d.className=lines[i][0];d.textContent=lines[i][1];t.appendChild(d);i++;timers.push(setTimeout(next,i<3?650:340))}
+    else{t.insertAdjacentHTML("beforeend",'<span class="cursor">&nbsp;</span>');document.getElementById("open").hidden=false}};
+  timers.push(setTimeout(next,300));
+  document.getElementById("open").onclick=()=>go(S.role?"brief":"login");
+}
+
+/* ---------- Anmeldung ---------- */
+function renderLogin(){
+  app.innerHTML=`<div class="wrap">${BACK()}
+    <div class="large">Anmelden</div>
+    <p class="story" style="margin-top:6px">Wer gehört zum Cluster?</p>
+    <div class="secthead">Bräutigam</div>
+    <button class="btn" id="groom" style="background:var(--orange);color:#000">Ich bin der Bräutigam</button>
+    <div class="secthead">Crew</div>
+    <form id="f"><input id="in" autocomplete="off" autocapitalize="characters" spellcheck="false" placeholder="Zugangscode" aria-label="Zugangscode"><button class="go">Anmelden</button></form>
+    <div class="fb" id="fb" role="status"></div>
+    ${S.admin?adminBlock():""}</div>`;
+  document.getElementById("groom").onclick=async()=>{
+    const ok=await dialog({title:"Bist du der Bräutigam?",text:"Nur der Bräutigam darf sich als Root anmelden.",actions:[{label:"Nein",value:0},{label:"Ja",cls:"strong",value:1}]});
+    if(ok){S.role="root";go("brief")}};
+  document.getElementById("f").onsubmit=e=>{e.preventDefault();const v=norm(document.getElementById("in").value);if(!v)return;
+    if(v===norm(CONFIG.adminCode)){S.admin=true;save();renderLogin();return}
+    const c=CONFIG.codes[v];
+    if(c){S.role=c.role;S.name=c.name||"";sound("ok");go("brief")}
+    else{sound("buzz");const fb=document.getElementById("fb");fb.className="fb e";fb.textContent="Unbekannter Zugangscode.";
+      const f=document.getElementById("f");f.classList.remove("shake");void f.offsetWidth;f.classList.add("shake")}};
+  bindAdmin();
+}
+function renderBrief(){
+  const r=ROLES[S.role];
+  app.innerHTML=`<div class="wrap">${BACK()}
+    <div class="badge ${isRoot()?"root":""}">${r.short}</div>
+    <div class="large">${S.name?S.name+", du bist "+r.name:"Du bist "+r.name}</div>
+    <p class="manual" style="margin-top:10px">${r.desc}</p>
+    <div class="task"><strong>Regel Nummer eins:</strong> Niemand zeigt seinen Bildschirm einer anderen Person. Nur vorlesen und reden.</div>
+    ${isRoot()?"":`<div class="task">Nach jedem Patch nennt Root euch einen <strong>Sync-Code</strong>. Damit ladet ihr das nächste Modul.</div>`}
+    <button class="btn" id="go">Los geht's</button></div>`;
+  document.getElementById("go").onclick=()=>go("dash");
+}
+function adminBlock(){
+  return`<div class="secthead">Spielleitung</div>
+  <div class="group admin"><table class="sheet">${MODS.map((m,i)=>`<tr><td>${i+1} ${m.file}<br><span style="color:var(--dim)">${m.ort}</span></td><td>${m.answers[0]}${CONFIG.checkpoints&&CONFIG.checkpoints[i]?"<br><span style=\"color:var(--dim)\">CP: "+CONFIG.checkpoints[i].code+"</span>":""}</td><td>${m.frag}</td></tr>`).join("")}
+  <tr><td>Box-Code</td><td>${MODS.map(m=>m.frag).join("")}</td><td></td></tr></table></div>
+  <button class="btn" id="prevfin" style="margin-top:14px;background:var(--green);color:#000">Finale mit Kuss-Animation ansehen</button>
+  <div class="secthead">Als Rolle ansehen</div>
+  <div class="group rolelist">${Object.keys(ROLES).map(k=>`<button data-r="${k}">${ROLES[k].name}<span>${k==="root"?"–":Object.keys(CONFIG.codes).find(c=>CONFIG.codes[c].role===k)}</span></button>`).join("")}</div>
+  <button class="btn gray" id="restart" style="margin-top:22px;color:var(--red)">Alles zurücksetzen und von vorne starten</button>
+  <button class="linkbtn" id="adoff" style="color:var(--blue)">Spielleiter-Modus beenden</button>`}
+function bindAdmin(){
+  app.querySelectorAll(".rolelist button").forEach(b=>b.onclick=()=>{S.role=b.dataset.r;S.name="";go("dash")});
+  const pf=document.getElementById("prevfin");if(pf)pf.onclick=()=>go("final");
+  const rs=document.getElementById("restart");if(rs)rs.onclick=async()=>{
+    const ok=await dialog({title:"Alles zurücksetzen?",text:"Rolle, Fortschritt und Hinweise auf diesem Handy werden gelöscht. Danach startet die Seite wieder beim Sperrbildschirm.",
+      actions:[{label:"Abbrechen",value:0},{label:"Zurücksetzen",cls:"red strong",value:1}]});
+    if(ok){S=blank();S.admin=true;save();render();window.scrollTo(0,0)}};
+  const o=document.getElementById("adoff");if(o)o.onclick=()=>{S.admin=false;save();render()};
+}
+
+/* ---------- Übersicht ---------- */
+function renderDash(){
+  const done=S.solved.length,all=isRoot()&&done===MODS.length;
+  const st=i=>isRoot()?(solved(i)?["done","✓"]:open(i)?["open","offen"]:["","gesperrt"]):(open(i)?["open","geladen"]:["","Sync nötig"]);
+  app.innerHTML=`<div class="wrap">${BACK()}
+    <div class="ver">${isRoot()?(all?CONFIG.fixed+" (stabil)":CONFIG.system+" + "+CONFIG.fixed):"Cluster"}</div>
+    <div class="large">${isRoot()?"Patch-Konsole":roleName()}</div>
+    ${S.name?`<p class="story" style="margin:2px 0 0">${S.name}</p>`:""}
+    ${isRoot()?`<div class="secthead">Fortschritt</div><div class="ring"><div class="bar"><span style="width:${done/MODS.length*100}%"></span></div><span class="code">${MODS.map((m,i)=>solved(i)?m.frag:"_").join("")}</span></div>
+      <div class="group" style="margin-top:14px"><div class="wx"><span>Wettermodus</span><button class="switch" role="switch" aria-checked="${S.weather}" aria-label="Wettermodus" id="wx"></button></div></div>
+      <p class="story" style="font-size:13px;margin:6px 4px 0">Bei Regen: Module drinnen lösen statt Orte ablaufen.</p>`
+    :`<p class="manual" style="margin-top:8px">${S.role==="dbg"?"Du hast die Hinweise. Jeder kostet Root einen Strafshot.":"Du hältst Teile der Lösung. Nach jedem Patch bekommst du von Root einen Sync-Code."}</p>`}
+    <div class="secthead">Module</div>
+    <div class="group"><ul class="mods">${MODS.map((m,i)=>{const[c,t]=st(i);
+      return`<li><button data-i="${i}" ${isRoot()&&!open(i)?"disabled":""}><span class="n ${c}">${i+1}</span>
+      <span><span class="mname">${m.file}</span>${isRoot()?`<span class="mloc">${S.weather?"drinnen":m.ort}</span>`:""}</span>
+      <span class="st">${t}</span><span class="chev">›</span></button></li>`}).join("")}</ul></div>
+    ${isRoot()&&(all||S.admin)?`<button class="btn" id="fin" style="margin-top:22px;${all?"background:var(--green);color:#000":""}">${all?"System neu starten":"Finale ansehen (Vorschau)"}</button>`:""}
+    ${S.admin?adminBlock():""}
+    <button class="linkbtn" id="rs">Abmelden</button></div>`;
+  if(isRoot())document.getElementById("wx").onclick=()=>{S.weather=!S.weather;save();renderDash()};
+  app.querySelectorAll(".mods button").forEach(b=>b.onclick=()=>go("mod",+b.dataset.i));
+  const fin=document.getElementById("fin");if(fin)fin.onclick=()=>go("final");
+  bindAdmin();
+  document.getElementById("rs").onclick=async()=>{
+    const ok=await dialog({title:"Abmelden?",text:"Dein Fortschritt auf diesem Handy wird gelöscht. Danach kannst du dich mit einem anderen Code anmelden.",
+      actions:[{label:"Abbrechen",value:0},{label:"Abmelden",cls:"red strong",value:1}]});
+    if(ok){const a=S.admin;S=blank();S.admin=a;S.phase="login";save();render();window.scrollTo(0,0)}};
+}
+
+/* ---------- Werkzeuge für Root ---------- */
+const MORSE={A:".-",B:"-...",C:"-.-.",D:"-..",E:".",F:"..-.",G:"--.",H:"....",I:"..",J:".---",K:"-.-",L:".-..",M:"--",N:"-.",O:"---",P:".--.",Q:"--.-",R:".-.",S:"...",T:"-",U:"..-",V:"...-",W:".--",X:"-..-",Y:"-.--",Z:"--.."};
+function tool(m){
+  if(m.tool==="bubble")return`<div class="caesar" style="text-align:center"><label>Tausch-Zähler</label>
+    <div class="frag" id="swc" style="margin:4px 0 2px">0</div><div class="fb" id="swm" style="margin:0 0 10px"></div>
+    <div style="display:flex;gap:8px"><button class="btn" id="swp">+1 Tausch</button><button class="btn gray" id="swu" style="flex:0 0 30%">−1</button></div>
+    <button class="hintbtn" id="swr" style="margin-top:10px">Zähler zurücksetzen</button></div>`;
+  if(m.tool==="quiz")return`<div class="caesar"><label for="pin">Fragment-Code laden</label>
+    <form id="pf"><input id="pin" autocomplete="off" autocapitalize="characters" spellcheck="false" placeholder="z. B. 00" aria-label="Fragment-Code"><button class="go">Laden</button></form>
+    <div class="fb" id="pfb" style="margin:8px 2px 4px"></div>
+    <label>Profile im Cluster</label><div class="group rolelist" id="profs" style="margin-bottom:12px"></div>
+    <label>Profil-Bild: Teile antippen und in die richtige Reihenfolge setzen</label>
+    <div class="slots" id="slots"></div><div class="tray" id="tray"></div><div class="fb" id="pst" style="margin:10px 2px 0"></div></div>`;
+  if(m.tool==="ascii")return`<div class="grid ascii">${Array.from({length:26},(_,k)=>`<div>${(65+k).toString(16).toUpperCase()}<b>${String.fromCharCode(65+k)}</b></div>`).join("")}</div>`;
+  if(m.tool==="caesar")return`<div class="caesar"><label for="ct">Geheimtext</label><input id="ct" autocomplete="off" spellcheck="false" placeholder="Text eingeben">
+    <label for="sh">Verschiebung zurück: <span id="shv">0</span></label><input type="range" id="sh" min="0" max="25" value="0"><div class="out" id="co"></div></div>`;
+  if(m.tool==="morse")return`<button class="btn" id="send" style="background:var(--orange);color:#000">Signal senden</button><p class="manual" style="margin-top:10px">Der Bildschirm blinkt und piept. Danach kommst du automatisch zurück.</p>`;
+  if(m.tool==="polybius"){const L="ABCDEFGHIKLMNOPQRSTUVWXYZ";let t="<table class='poly'><tr><th></th>"+[1,2,3,4,5].map(n=>`<th>${n}</th>`).join("")+"</tr>";
+    for(let r=0;r<5;r++){t+=`<tr><th>${r+1}</th>`+[0,1,2,3,4].map(c=>`<td>${L[r*5+c]}</td>`).join("")+"</tr>"}return t+"</table>"}
+  if(m.tool==="setz")return`<p class="manual" style="margin:0 0 6px">Setzkasten-Plan, von links nach rechts, so wie du die Reihe vor dir siehst:</p><div class="setz">${SETZ}</div>`;
+  return"";
+}
+function bindGuess(m,n){
+  const q=CONFIG.quiz[+n[0].slice(1)];
+  const names=[...new Set(CONFIG.quiz.map(x=>x.a))];
+  S.gs=S.gs||{};const g=S.gs[n[0]]=S.gs[n[0]]||{wrong:[],ok:false};
+  const box=document.getElementById("guess"),fb=document.getElementById("gfb"),out=document.getElementById("gcode");
+  function draw(){
+    box.innerHTML=names.map(nm=>{const w=g.wrong.includes(nm),r=g.ok&&nm===q.a;
+      return`<button data-n="${nm.replace(/"/g,"&quot;")}" ${w||g.ok?"disabled":""} style="${w?"opacity:.35;text-decoration:line-through":""}${r?"color:var(--green);font-weight:600":""}">${nm}<span>${w?"✗":r?"✓":""}</span></button>`}).join("");
+    box.querySelectorAll("button").forEach(b=>b.onclick=()=>{const nm=b.dataset.n;
+      if(nm===q.a){g.ok=true;sound("ok");fb.className="fb";fb.style.color="var(--green)";fb.textContent="Richtig!"}
+      else{g.wrong.push(nm);sound("buzz");fb.className="fb e";fb.style.color="";fb.textContent="Falsch! Strafshot für Root. Weiter raten."}
+      save();draw()});
+    out.innerHTML=g.ok?`<div class="piece"><div class="main">${n[1]}</div><div class="sub">Dein Fragment-Code. Root lädt damit ein Bildteil.</div></div>`:"";
+  }
+  draw();
+}
+function puzzleImage(word){
+  const N=word.length,W=20*N,H=46,cv=document.createElement("canvas");cv.width=W;cv.height=H;const ctx=cv.getContext("2d");
+  const SKY=["#26306b","#38448f","#5a58a8","#8a6cb0","#c4849f","#eba586","#f6c48f"];
+  for(let y=0;y<43;y++){ctx.fillStyle=SKY[Math.min(6,Math.floor(y/6.2))];ctx.fillRect(0,y,W,1)}
+  [[3,3],[27,6],[46,2],[71,5],[93,3],[12,9],[64,11],[84,8]].forEach(([x,y])=>{if(x<W){ctx.fillStyle="#fff";ctx.fillRect(x,y,1,1)}});
+  ctx.fillStyle="#1c1c1e";ctx.fillRect(0,43,W,3);
+  for(let x=0;x<W;x+=3){ctx.fillStyle=(x%9===0)?"#30d158":"#2c2c2e";ctx.fillRect(x,43,2,1)}
+  ctx.font="bold 15px ui-monospace,Menlo,monospace";ctx.textAlign="center";ctx.textBaseline="top";
+  [...word].forEach((ch,k)=>{ctx.fillStyle="#1b1f4a";ctx.fillText(ch,k*20+11,3);ctx.fillStyle="#ffffff";ctx.fillText(ch,k*20+10,2)});
+  const gx=Math.floor(N/2)*20-10;spr(ctx,GROOM,gx,22);spr(ctx,BRIDE,gx+10,22);spr(ctx,HEART,gx+6,15);
+  [[17,30],[57,26],[77,33],[64,37]].forEach(([x,y])=>{if(x+5<=W)spr(ctx,MINI,x,y)});
+  return cv;
+}
+function bindPuzzle(m){
+  const word=m.answers[0],N=word.length,map={};
+  Object.values(m.nodes).forEach(n=>{if(n[0][0]==="q")map[norm(n[1])]=n[2]-1});
+  if(!S.pz||S.pz.n!==N)S.pz={n:N,got:[],slots:Array(N).fill(-1)};
+  const img=puzzleImage(word);let sel=null;
+  const who={};Object.values(m.nodes).forEach(n=>{if(n[0][0]==="q")who[n[2]-1]=CONFIG.quiz[+n[0].slice(1)].a});
+  const profs=document.getElementById("profs");
+  const drawProfs=()=>{const done=S.pz.got.map(k=>who[k]);const all=[...new Set(CONFIG.quiz.map(x=>x.a))];
+    profs.innerHTML=all.map(nm=>`<button disabled style="${done.includes(nm)?"color:var(--green)":""}">${nm}<span>${done.includes(nm)?"✓ zugeordnet":"offen"}</span></button>`).join("")};
+  const strip=k=>{const c=document.createElement("canvas");c.width=20;c.height=img.height;c.getContext("2d").drawImage(img,k*20,0,20,img.height,0,0,20,img.height);c.className="strip";return c};
+  const slots=document.getElementById("slots"),tray=document.getElementById("tray"),pst=document.getElementById("pst");
+  slots.style.gridTemplateColumns=`repeat(${N},1fr)`;
+  const done=()=>S.pz.slots.every((v,i)=>v>=0&&word[v]===word[i]);
+  function draw(){
+    slots.innerHTML="";tray.innerHTML="";
+    S.pz.slots.forEach((k,i)=>{const d=document.createElement("button");d.className="slot"+(k<0?" empty":"");d.setAttribute("aria-label","Platz "+(i+1));
+      if(k>=0)d.appendChild(strip(k));
+      d.onclick=()=>{if(done())return;if(sel!==null){const prev=S.pz.slots[i];S.pz.slots[i]=sel;sel=null;if(prev>=0&&prev!==S.pz.slots[i]){}}
+        else if(k>=0){S.pz.slots[i]=-1}save();draw()};slots.appendChild(d)});
+    S.pz.got.filter(k=>!S.pz.slots.includes(k)).forEach(k=>{const d=document.createElement("button");d.className="tile"+(sel===k?" sel":"");d.appendChild(strip(k));
+      d.setAttribute("aria-label","Bildteil");d.onclick=()=>{sel=(sel===k?null:k);draw()};tray.appendChild(d)});
+    const placed=S.pz.slots.filter(v=>v>=0).length;
+    drawProfs();
+    if(done()){slots.classList.add("solved");pst.style.color="var(--green)";pst.textContent="Alle Profile wiederhergestellt ✓ Lies das Wort ab."}
+    else{slots.classList.remove("solved");pst.style.color="";pst.textContent=`${S.pz.got.length} von ${N} Teilen geladen, ${placed} eingesetzt.`+(S.pz.got.length===N&&placed===N?" Die Reihenfolge stimmt noch nicht.":"")}
+  }
+  document.getElementById("pf").onsubmit=e=>{e.preventDefault();const v=norm(document.getElementById("pin").value),fb=document.getElementById("pfb");if(!v)return;
+    if(v in map){const k=map[v];if(S.pz.got.includes(k)){fb.className="fb";fb.textContent="Dieses Teil ist schon geladen."}
+      else{S.pz.got.push(k);save();sound("ok");fb.className="fb";fb.style.color="var(--green)";fb.textContent="Bildteil geladen.";document.getElementById("pin").value=""}}
+    else{sound("buzz");fb.className="fb e";fb.style.color="";fb.textContent="Unbekannter Fragment-Code."}
+    draw()};
+  draw();
+}
+function bindTool(m){
+  if(m.tool==="bubble"){S.sw=S.sw||0;const c=document.getElementById("swc"),msg=document.getElementById("swm");
+    const draw=()=>{c.textContent=S.sw;if(S.sw>10){c.style.color="var(--red)";msg.className="fb e";msg.textContent="Mehr als 10 Tausche: ineffizienter Algorithmus. Strafshot!"}
+      else{c.style.color="";msg.className="fb";msg.textContent=S.sw?"Effizient bleiben. Mehr als 10 Tausche kosten einen Strafshot.":""}};
+    document.getElementById("swp").onclick=()=>{S.sw++;save();sound("ok");draw()};
+    document.getElementById("swu").onclick=()=>{S.sw=Math.max(0,S.sw-1);save();draw()};
+    document.getElementById("swr").onclick=()=>{S.sw=0;save();draw()};draw()}
+  if(m.tool==="quiz")bindPuzzle(m);
+  if(m.tool==="caesar"){const ct=document.getElementById("ct"),sh=document.getElementById("sh"),co=document.getElementById("co"),shv=document.getElementById("shv");
+    const up=()=>{const k=+sh.value;shv.textContent=k;co.textContent=norm(ct.value).replace(/[A-Z]/g,c=>String.fromCharCode((c.charCodeAt(0)-65-k+26)%26+65))};
+    ct.oninput=up;sh.oninput=up}
+  if(m.tool==="morse")document.getElementById("send").onclick=()=>sendMorse(m.answers[0]);
+}
+function sendMorse(word){
+  const u=280,ov=document.createElement("div");ov.className="morseflash";ov.textContent="Signal läuft …";document.body.appendChild(ov);
+  const seq=[];[...word].forEach(ch=>{[...MORSE[ch]].forEach(s=>{seq.push([1,s==="."?u:u*3]);seq.push([0,u])});seq.push([0,u*3])});
+  const lead=600;
+  /* Ton als WAV über die Medienlautstärke, synchron zum Licht */
+  try{play(wav([[0,lead/1000],...seq.map(([on,d])=>[on?700:0,d/1000])]))}catch(e){}
+  let t=lead;seq.forEach(([on,d])=>{const st=t;timers.push(setTimeout(()=>{ov.classList.toggle("on",!!on);ov.textContent=on?"":"Signal läuft …";
+    if(on){try{navigator.vibrate&&navigator.vibrate(d)}catch(e){}}},st));t+=d});
+  timers.push(setTimeout(()=>ov.remove(),t+400));
+}
+
+/* ---------- Modulansicht ---------- */
+const errs=["Segmentation fault. Nochmal.","403 Forbidden. Falsche Eingabe.","SyntaxError: Root zu nüchtern.","Kernel lehnt ab. Fragt eure Nodes.","404: Antwort nicht gefunden."];
+function renderMod(){
+  const i=S.cur,m=MODS[i];
+  const top=`<div class="wrap">${BACK()}
+    <div class="head"><h2 style="font-family:var(--mono)">${m.file}</h2><span class="ver">Modul ${i+1}/${MODS.length}</span></div>`;
+  if(!open(i)){
+    app.innerHTML=top+`<p class="story">Dieses Modul ist noch nicht geladen. Root nennt dir nach dem letzten Patch einen Sync-Code.</p>
+      <form id="f"><input id="in" autocomplete="off" autocapitalize="characters" spellcheck="false" placeholder="Sync-Code" aria-label="Sync-Code"><button class="go">Laden</button></form>
+      <div class="fb" id="fb" role="status"></div></div>`;
+    
+    document.getElementById("f").onsubmit=e=>{e.preventDefault();const v=norm(document.getElementById("in").value);if(!v)return;
+      if(MODS[i-1].answers.map(norm).includes(v)){sound("ok");S.unlocked.push(i);save();renderMod()}
+      else{sound("buzz");const fb=document.getElementById("fb");fb.className="fb e";fb.textContent="Sync fehlgeschlagen. Code bei Root nachfragen.";
+        const f=document.getElementById("f");f.classList.remove("shake");void f.offsetWidth;f.classList.add("shake")}};
+    return}
+  if(isRoot())return renderRootMod(top,m,i);
+  let body="";
+  if(S.role==="dbg"){const h=S.hintUsed.includes(i);
+    body=`<p class="story">${m.story}</p><div class="piece"><div class="main sm" id="ht">${h?m.hint:"Hinweis verborgen."}</div>
+      <div class="sub">Nur verraten, wenn das Team feststeckt. Kostet einen Strafshot für Root.</div></div>
+      ${h?"":'<button class="btn" id="hb">Hinweis aufdecken</button>'}`;
+  }else{
+    const n=m.nodes[S.role];
+    if(m.tool==="quiz"&&n[0][0]==="q"){const q=CONFIG.quiz[+n[0].slice(1)];
+      body=`<p class="story">${m.story}</p><div class="piece"><div class="main sm">Lies Root vor:<br><strong>${q.q}</strong></div>
+        <div class="sub">Root muss erraten, wer das ist. Tipp seinen Tipp hier an. Pokerface! Alle dürfen ihn auf falsche Fährten locken.</div></div>
+        <div class="group rolelist" id="guess"></div><div class="fb" id="gfb" style="margin:10px 4px"></div><div id="gcode"></div>`;
+    }else if(n[2]===2){
+      body=`<p class="story">${m.story}</p><div class="piece"><div class="mirror">${n[0]}</div><div class="sub">Du bist Letter ${S.role}. Root kennt deinen Platz in der Reihe. Stell dich auf und halte dein Handy hoch, mit dem Bildschirm zu Root. Ausnahmsweise darf er ihn sehen.${n[1]?`<br><br><strong style="color:var(--orange)">Du hast die Anleitung fürs Foto.</strong> ${n[1]}`:""}</div></div>`;
+    }else{
+      body=`<p class="story">${m.story}</p><div class="piece"><div class="main ${n[2]===1||n[0].length>10?"sm":""}">${n[0]}</div><div class="sub">${n[1]}</div></div>`;
+    }
+  }
+  app.innerHTML=top+`<p class="rule">Bildschirm nicht zeigen. Nur vorlesen.</p>`+body+(S.admin?`<div class="task admin"><strong>Lösung:</strong> ${m.answers[0]}</div>`:"")+`</div>`;
+  
+  const hb=document.getElementById("hb");if(hb)hb.onclick=()=>{S.hintUsed.push(i);save();renderMod()};
+  if(m.tool==="quiz"&&!isRoot()&&S.role!=="dbg"){const n=m.nodes[S.role];if(n&&n[0][0]==="q")bindGuess(m,n)}
+}
+function renderRootMod(top,m,i){
+  const s=solved(i);
+  S.cp=S.cp||[];
+  const cp=CONFIG.checkpoints&&CONFIG.checkpoints[i];
+  if(cp&&!s&&!S.cp.includes(i)){
+    const maps="https://www.google.com/maps/search/?api=1&query="+cp.lat+","+cp.lng;
+    app.innerHTML=top+`<div class="loc ${S.weather?"rain":""}">${S.weather?"Wettermodus aktiv":"Ziel: <strong>"+m.ort+"</strong>"}</div>
+      <div class="piece" style="text-align:left"><div class="main sm"><strong>Checkpoint gesperrt</strong>
+      Bevor das Modul startet, braucht ihr den Freischaltcode.</div>
+      <div class="sub">${S.weather?cp.rain:cp.find+" Sucht nach dem Pixel-Brautpaar, darunter steht der Code."}</div></div>
+      ${S.weather?"":`<a class="btn gray" href="${maps}" target="_blank" rel="noopener" style="text-align:center;text-decoration:none;margin-bottom:14px">📍 In Google Maps öffnen</a>`}
+      <form id="f"><input id="in" autocomplete="off" autocapitalize="characters" spellcheck="false" placeholder="Freischaltcode" aria-label="Freischaltcode"><button class="go">Freischalten</button></form>
+      <div class="fb" id="fb" role="status"></div>
+      ${S.admin?`<div class="task admin"><strong>Code:</strong> ${cp.code}<br><button class="hintbtn" id="cpskip" style="margin-top:10px">Checkpoint überspringen</button></div>`:""}</div>`;
+    const ok=()=>{S.cp.push(i);save();sound("ok");renderRootMod(top,m,i)};
+    document.getElementById("f").onsubmit=e=>{e.preventDefault();const v=norm(document.getElementById("in").value);if(!v)return;
+      if(v===norm(cp.code))ok();
+      else{sound("buzz");const fb=document.getElementById("fb");fb.className="fb e";fb.textContent="Ungültiger Code. Sucht weiter.";
+        const f=document.getElementById("f");f.classList.remove("shake");void f.offsetWidth;f.classList.add("shake")}};
+    const sk=document.getElementById("cpskip");if(sk)sk.onclick=ok;
+    return}
+  app.innerHTML=top+`<div class="loc ${S.weather?"rain":""}">${S.weather?"Wettermodus: Bleibt, wo ihr seid, und löst das Modul drinnen.":"Ort: <strong>"+m.ort+"</strong>"}</div>
+    <p class="story">${m.story}</p>
+    <p class="manual"><strong>Dein Handbuch:</strong> ${m.manual}</p>
+    ${tool(m)}
+    <div id="area"></div>
+    ${S.admin?`<div class="task admin"><strong>Lösung:</strong> ${m.answers[0]} · Fragment ${m.frag}${s?"":'<br><button class="hintbtn" id="skip" style="margin-top:10px">Als gelöst markieren</button>'}</div>`:""}</div>`;
+  
+  bindTool(m);
+  const area=document.getElementById("area");
+  const done=()=>{area.innerHTML=okHtml(m,i);document.getElementById("nx").onclick=()=>{const n=i+1;(n<MODS.length&&!solved(n))?go("mod",n):go("dash")}};
+  if(s)return done();
+  area.innerHTML=`<form id="f"><input id="in" autocomplete="off" autocapitalize="characters" spellcheck="false" placeholder="Lösung eingeben" aria-label="Lösung"><button class="go">Patchen</button></form><div class="fb" id="fb" role="status"></div>`;
+  document.getElementById("f").onsubmit=e=>{e.preventDefault();const v=norm(document.getElementById("in").value);if(!v)return;
+    if(m.answers.map(norm).includes(v)){sound("ok");S.solved.push(i);save();done()}
+    else{sound("buzz");const fb=document.getElementById("fb");fb.className="fb e";fb.textContent=(m.traps&&m.traps[v])||errs[Math.floor(Math.random()*errs.length)];
+      const f=document.getElementById("f");f.classList.remove("shake");void f.offsetWidth;f.classList.add("shake")}};
+  const sk=document.getElementById("skip");if(sk)sk.onclick=()=>{S.solved.push(i);save();renderRootMod(top,m,i)};
+}
+function okHtml(m,i){const last=i===MODS.length-1;
+  return`<div class="ok"><h3>Patch erfolgreich</h3><div>Code-Fragment ${i+1}:</div><div class="frag">${m.frag}</div>
+  ${CONFIG.warmup&&CONFIG.warmup[i]?`<div class="warm"><div class="therm"><span></span></div><div><strong>Systemtemperatur kritisch: ${CONFIG.warmup[i].temp}</strong><br>${CONFIG.warmup[i].text}<br><b>Wärmezufuhr erforderlich: eine Runde Glühwein für den ganzen Cluster.</b></div></div>`:""}
+  ${last?`<div class="sync" style="margin-bottom:10px">📸 <strong>Jetzt das Erinnerungsfoto!</strong> Alle bleiben stehen. Damit JAWORT auf dem Foto lesbar bleibt, frag Node A, wie das geht.</div>`:""}
+  ${last?"":`<div class="sync">Sag deinen Nodes den Sync-Code für Modul ${i+2}:<b>${m.answers[0]}</b></div>`}
+  <button class="btn" id="nx" style="margin-top:16px">${last?"Zur Konsole":"Nächstes Modul"}</button></div>`}
+
+
+/* ---------- Pixel-Animation: Kuss ---------- */
+const GROOM=["..KKKKK...", ".KKkkKKK..", ".KkkKKKKK.", ".KKKSSSSS.", ".KKSSSSES.", ".KKSSSSSSS", ".KKKSSSSK.", "..KKKKKKK.", "...KKKKK..", "....SSS...", "...NNWNN..", "..NNNWNNN.", "..NNNNNNN.", "..NNNNNNS.", "..NNNNNN..", "..NNNNNN..", "..PPPPPP..", "..PPP.PP..", "..PPP.PP..", "..PPP.PP..", "..BBBBBBB."];
+const BRIDE=["...HHHHH..", "..HHHHHHH.", ".HHHHHHHHH", ".GGGSSHHHH", ".GEGGGHHHH", "SSSSSSHHHH", ".SMSSSHHHH", ".SSSSHHHHH", "...SSHHHHH", "...SSSHHH.", "..DDDDDHH.", ".SDDDDDD..", "..DDDDDD..", "..DDDDDD..", ".DDDDDDDD.", ".DDDDDDDD.", "DDDDDDDDDD", "DDDDDDDDDD", "DDDDDDDDDD", "DDDDDDDDDD", "dDdDdDdDdD"];
+const HEART=[".RR.RR.","RRRRRRR","RRRRRRR",".RRRRR.","..RRR..","...R..."];
+const MINI=[".R.R.","RRRRR",".RRR.","..R.."];
+const PAL={K:"#141414",k:"#3a3a3a",S:"#f1c27d",E:"#111",W:"#ffffff",B:"#111",N:"#2b3a67",P:"#1f2433",H:"#7b4a2a",G:"#2a2a2a",M:"#e06b8b",D:"#f4f4f8",d:"#cfd0dc",R:"#ff4d6d"};
+function spr(ctx,s,x,y,alpha){ctx.globalAlpha=alpha==null?1:alpha;s.forEach((row,r)=>{for(let c=0;c<row.length;c++){const ch=row[c];if(ch!=="."){ctx.fillStyle=PAL[ch];ctx.fillRect(Math.round(x)+c,Math.round(y)+r,1,1)}}});ctx.globalAlpha=1}
+function pixelKiss(cv){
+  const ctx=cv.getContext("2d"),W=128,H=72,GY=64;let t=0,gx=8,bx=110,met=-1;const parts=[];
+  const stars=Array.from({length:26},(_,i)=>({x:(i*47)%W,y:(i*29)%16+1,p:i*13}));
+  const frame=()=>{if(!cv.isConnected)return;t++;
+    const SKY=["#26306b","#38448f","#5a58a8","#8a6cb0","#c4849f","#eba586","#f6c48f"];SKY.forEach((c,i)=>{ctx.fillStyle=c;ctx.fillRect(0,i*10,W,10)});
+    stars.forEach(s=>{ctx.fillStyle=((t+s.p)%90<70)?"#ffffff":"#5a64b0";ctx.fillRect(s.x,s.y,1,1)});
+    ctx.fillStyle="#1c1c1e";ctx.fillRect(0,GY,W,H-GY);ctx.fillStyle="#2c2c2e";for(let x=0;x<W;x+=4)ctx.fillRect(x+(x%8?0:2),GY,2,1);
+    const walking=met<0;
+    if(walking){gx=Math.min(53,gx+.35);bx=Math.max(65,bx-.35);if(gx>=53&&bx<=65)met=t}
+    const bob=walking?(Math.floor(t/9)%2):0;
+    const lean=met>0&&t-met>35?1:0;
+    spr(ctx,GROOM,gx+lean,GY-21-bob);spr(ctx,BRIDE,bx-lean,GY-21-(walking?1-bob:0));
+    if(lean){const k=t-met-35;
+      const pulse=Math.floor(k/12)%2;spr(ctx,HEART,61,25-Math.min(8,k/4)-pulse);
+      if(k%14===0)parts.push({x:56+Math.random()*16,y:34,v:.25+Math.random()*.25,a:1});
+      if(k===1)for(let i=0;i<40;i++)parts.push({x:64,y:38,vx:(Math.random()-.5)*1.6,vy:-Math.random()*1.6,c:["#ff4d6d","#ffd60a","#30d158","#0a84ff","#fff"][i%5],a:1,conf:1});}
+    for(let i=parts.length-1;i>=0;i--){const p=parts[i];
+      if(p.conf){p.x+=p.vx;p.y+=p.vy;p.vy+=.03;p.a-=.006;ctx.globalAlpha=Math.max(0,p.a);ctx.fillStyle=p.c;ctx.fillRect(Math.round(p.x),Math.round(p.y),1,1);ctx.globalAlpha=1}
+      else{p.y-=p.v;p.a-=.006;spr(ctx,MINI,p.x,p.y,Math.max(0,p.a))}
+      if(p.a<=0||p.y<-6)parts.splice(i,1)}
+    requestAnimationFrame(frame)};
+  requestAnimationFrame(frame);
+}
+
+/* ---------- Finale ---------- */
+function renderFinal(){
+  app.innerHTML=`<div class="wrap">${BACK()}
+    <div class="term" style="min-height:0;margin-bottom:18px"><div class="o">> Alle Module gepatcht.</div><div class="o">> ${CONFIG.system} sauber beendet.</div><div class="o">> ${CONFIG.fixed} läuft stabil.</div></div>
+    <div class="large">Konflikt gelöst. Ehemann-Modus voll aktiv.</div>
+    <p class="manual" style="margin-top:8px;color:var(--green)">Bereit für die Release-Party am 19.12.2026.</p>
+    <canvas id="kiss" width="128" height="72" aria-label="Pixel-Animation: Das Brautpaar küsst sich" style="display:block;width:100%;image-rendering:pixelated;border-radius:16px;margin:18px 0 8px;background:#26306b"></canvas>
+    <button class="btn gray" id="replay">Nochmal abspielen</button>
+    <p class="story" style="margin-top:18px">Euer Code für die Box:</p>
+    <div class="big">${MODS.map(m=>m.frag).join("")}</div>
+    <p class="manual">${CONFIG.finale}</p>
+    <div class="task"><strong>Strafshots:</strong> Debugger und Schiedsrichter (Modul 4) wissen, wie viele noch offen sind.</div></div>`;
+  const cv=document.getElementById("kiss");pixelKiss(cv);
+  document.getElementById("replay").onclick=()=>{const o=document.getElementById("kiss"),n=o.cloneNode();o.replaceWith(n);pixelKiss(n)};
+  
+}
+function render(){({lock:renderLock,na:renderNA,boot:renderBoot,login:renderLogin,brief:renderBrief,dash:renderDash,mod:renderMod,final:renderFinal}[S.phase]||renderLock)()}
+render();
+</script>
+</body>
+</html>
